@@ -1,0 +1,12 @@
+[package]
+name = "micro"
+version = "0.1.1"
+authors = ["FredJeck <frederic.jecker@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+simple_logger = "1.11.0"
+pulldown-cmark = { version = "0.8", default-features = false, features = ["simd"] }
