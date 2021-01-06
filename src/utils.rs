@@ -6,7 +6,8 @@ use std::thread::JoinHandle;
 use std::time::SystemTime;
 use std::{thread, time};
 
-/// Spawns a process which periodically scouts for changes in files
+/// Spawns a process which periodically scouts for file changes.
+/// Changes are passed to a handler function.
 ///
 /// # Arguments
 /// 
@@ -23,6 +24,16 @@ pub fn make_watcher(
     info!("Watching {}", path.to_str().unwrap());
     let mut last_run = SystemTime::now();
     let child = thread::spawn(move || loop {
+
+        let metadata = match fs::metadata(path){
+            Ok(m) => m,
+            Err(e) => panic!("Unable to monitor '{}' for changes, please make sure the path exits and points to a directory\n{}", path.to_str().unwrap(), e)
+        };
+
+        if !metadata.is_dir() {
+            panic!("Unable to monitor '{}' for changes, please make sure the path exits and points to a directory", path.to_str().unwrap());
+        }
+
         walk_dir(path, last_run, handler, recursive).unwrap();
         last_run = SystemTime::now();
         thread::sleep(time::Duration::from_millis(poll_frequency));
@@ -31,6 +42,7 @@ pub fn make_watcher(
     child
 }
 
+/// Recursively iterates through the items in a directorry scanning for changes
 fn walk_dir(
     path: &Path,
     ref_time: std::time::SystemTime,
@@ -40,7 +52,7 @@ fn walk_dir(
     let contents = match fs::read_dir(path) {
         Ok(d) => d,
         Err(err) => {
-            warn!("Unable to browse '{}' :: {}", path.to_str().unwrap(), err);
+            warn!("Unable to read '{}' contents\n{}", path.to_str().unwrap(), err);
             return Ok(());
         }
     };
@@ -52,7 +64,7 @@ fn walk_dir(
         let metadata = match fs::metadata(filepath) {
             Ok(md) => md,
             Err(err) => {
-                warn!("Unable to stat '{}' :: {}", path.to_str().unwrap(), err);
+                warn!("Unable to stat '{}'\n{}", path.to_str().unwrap(), err);
                 continue;
             }
         };
