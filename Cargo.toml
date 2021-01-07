@@ -12,3 +12,5 @@ simple_logger = "1.11.0"
 pulldown-cmark = { version = "0.8", default-features = false, features = ["simd"] }
 chrono = "0.4"
 simple-error = "0.2.2"
+regex = "1"
+serde_yaml = "0.8.15"

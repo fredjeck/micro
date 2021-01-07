@@ -1,20 +1,15 @@
 // use chrono::{DateTime, Utc};
 use log::trace;
 use pulldown_cmark::{html, Options, Parser};
+use serde_yaml::Value;
 use simple_error::bail;
-use std::{
-    env,
-    // error::Error,
-    fs::File,
-    io::{prelude::*, BufWriter},
-    path::Path,
-    str,
-};
+use std::{env, fs::File, io::{prelude::*, BufWriter},  path::Path, str};
 use std::{
     error, 
     ffi::OsStr,
     //  time::SystemTime
     };
+    use regex::Regex;
 
 // pub fn md_to_html(p: &Path) -> Result<(), Box<dyn Error>> {
 //     let mut f = File::open(p).unwrap();
@@ -62,6 +57,7 @@ pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
     }
 
     let mut markdown = Vec::new();
+
     let mut source_file = match File::open(source) {
         Ok(handle) => handle,
         Err(error) => bail!(
@@ -74,9 +70,24 @@ pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
     match source_file.read_to_end(&mut markdown) {
         Ok(_) => {}
         Err(error) => bail!("An error occured reading {:#?} content {}", source, error),
-    }
+    };
 
-    let parser = Parser::new_ext(str::from_utf8(&markdown)?, Options::all());
+    let mut markdown_content = str::from_utf8(&markdown)?.to_string();
+    println!("{}", has_metadata(&markdown_content));
+    let metadata = match extract_metadata(&mut markdown_content) {
+        Some(meta) => meta,
+        None => String::from("")
+    };
+
+    println!("Metadata {}", metadata);
+    let yaml:Value = match serde_yaml::from_str(&metadata){
+        Ok(v) => v,
+        Err(_) => Value::default(),
+    };
+
+    println!("{:#?}", yaml["description"]);
+
+    let parser = Parser::new_ext(markdown_content.as_str(), Options::all());
 
     let mut html = String::new();
     html::push_html(&mut html, parser);
@@ -155,4 +166,21 @@ fn load_template(name: &'static str, buffer: &mut Vec<u8>) -> Result<usize, Box<
     };
 
     Ok(bytes)
+}
+
+fn has_metadata(md: &str) ->bool{
+    let re = Regex::new(r"(?s)---(.*?)---").unwrap();
+    re.is_match(md)
+}
+
+fn extract_metadata(md: &mut String) -> Option<String>{
+    let re = Regex::new(r"(?s)---(.*?)---").unwrap();
+    if !re.is_match(&md) {
+        return None;
+    }
+
+    let metadata = re.captures(&md).unwrap()[1].to_string();
+    *md = re.replace(md, "").to_string();
+
+    Some(metadata)
 }

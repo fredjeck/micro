@@ -1,4 +1,11 @@
-# Learning Rust
+---
+layout: post
+published-on: 1 January 2000 
+title: Blogging Like a Boss  
+description: This is a long long description
+---  
+
+# Learning Rust 
 
 ### The compiler
 Use meme full metal jacket sergent hartman
