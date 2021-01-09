@@ -1,15 +1,17 @@
-// use chrono::{DateTime, Utc};
+pub mod metadata;
+
 use log::trace;
+use metadata::Metadata;
 use pulldown_cmark::{html, Options, Parser};
-use serde_yaml::Value;
 use simple_error::bail;
-use std::{env, fs::File, io::{prelude::*, BufWriter},  path::Path, str};
 use std::{
-    error, 
-    ffi::OsStr,
-    //  time::SystemTime
-    };
-    use regex::Regex;
+    env,
+    fs::File,
+    io::{prelude::*, BufWriter},
+    path::Path,
+    str,
+};
+use std::{error, ffi::OsStr};
 
 // pub fn md_to_html(p: &Path) -> Result<(), Box<dyn Error>> {
 //     let mut f = File::open(p).unwrap();
@@ -73,19 +75,14 @@ pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
     };
 
     let mut markdown_content = str::from_utf8(&markdown)?.to_string();
-    println!("{}", has_metadata(&markdown_content));
-    let metadata = match extract_metadata(&mut markdown_content) {
+    let metadata = match Metadata::extract(&mut markdown_content) {
         Some(meta) => meta,
-        None => String::from("")
+        None => {
+            bail!("Missing or incomplete metadata for file  {:#?} ", source)
+        }
     };
 
     println!("Metadata {}", metadata);
-    let yaml:Value = match serde_yaml::from_str(&metadata){
-        Ok(v) => v,
-        Err(_) => Value::default(),
-    };
-
-    println!("{:#?}", yaml["description"]);
 
     let parser = Parser::new_ext(markdown_content.as_str(), Options::all());
 
@@ -166,21 +163,4 @@ fn load_template(name: &'static str, buffer: &mut Vec<u8>) -> Result<usize, Box<
     };
 
     Ok(bytes)
-}
-
-fn has_metadata(md: &str) ->bool{
-    let re = Regex::new(r"(?s)---(.*?)---").unwrap();
-    re.is_match(md)
-}
-
-fn extract_metadata(md: &mut String) -> Option<String>{
-    let re = Regex::new(r"(?s)---(.*?)---").unwrap();
-    if !re.is_match(&md) {
-        return None;
-    }
-
-    let metadata = re.captures(&md).unwrap()[1].to_string();
-    *md = re.replace(md, "").to_string();
-
-    Some(metadata)
 }

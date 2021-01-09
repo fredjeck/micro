@@ -1,10 +1,10 @@
 ---
 layout: post
-published-on: 1 January 2000 
+published-on: 2021-01-01T20:00:00Z
 title: Blogging Like a Boss  
 description: This is a long long description
+  and uses multi line description
 ---
-
 # Why Micro 
 
 Before Facebook killed it, I had a blog, I used it to keep my friends which at that time were scattered all over the world, updated about what was going on in my life. It was also the place were I kept records about all my discoveries and thougts, may they be CS related or not. With everybody moving to Facebook, I stopped updating it and finally decided to delete it one year later...

@@ -1,6 +1,6 @@
 ---
 layout: post
-published-on: 1 January 2000 
+published-on: 2021-01-01T20:00Z
 title: Blogging Like a Boss  
 description: This is a long long description
 ---  
@@ -27,6 +27,10 @@ Use rust analyzer far superior
 Examples are trivial more complex examples could be helpful
 
 ### Options, Results and Question marks everywhere
+
+
+### Things that feel just wrong
+Lazy static and macros
 
 
 # Links
