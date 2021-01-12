@@ -28,6 +28,9 @@ Examples are trivial more complex examples could be helpful
 
 ### Options, Results and Question marks everywhere
 
+### Borrowing
+Once borrowed you cant have it back
+Example with iterators where you need to collect them into a vec
 
 ### Things that feel just wrong
 Lazy static and macros

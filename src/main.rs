@@ -6,7 +6,7 @@ mod utils;
 use convert::publish;
 use log::info;
 use simple_logger::SimpleLogger;
-use std::error::Error;
+use std::{error::Error, process::Command};
 use std::path::Path;
 use utils::make_watcher;
 
@@ -31,5 +31,7 @@ fn handle_path_change(p: &Path) {
         return;
     };
 
-    publish(p).unwrap();
+    let html = publish(p).unwrap();
+    print!("{:#?}", html);
+    Command::new("explorer").arg(html.as_os_str()).output().unwrap();
 }

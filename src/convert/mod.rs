@@ -4,13 +4,7 @@ use log::trace;
 use metadata::Metadata;
 use pulldown_cmark::{html, Options, Parser};
 use simple_error::bail;
-use std::{
-    env,
-    fs::File,
-    io::{prelude::*, BufWriter},
-    path::Path,
-    str,
-};
+use std::{env, fs::File, io::{prelude::*, BufWriter}, path::{Path, PathBuf}, str};
 use std::{error, ffi::OsStr};
 
 // pub fn md_to_html(p: &Path) -> Result<(), Box<dyn Error>> {
@@ -53,7 +47,7 @@ use std::{error, ffi::OsStr};
 //     Ok(())
 // }
 
-pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
+pub fn publish(source: &Path) -> Result<PathBuf, Box<dyn error::Error>> {
     if source.extension() != Some(OsStr::new("md")) {
         bail!("For now only markdown files are supported");
     }
@@ -90,11 +84,15 @@ pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
     html::push_html(&mut html, parser);
 
     let mut template = Vec::new();
-    load_template("article.html", &mut template)?;
+    load_template(&metadata.layout, &mut template)?;
 
     let content = str::from_utf8(&template)?;
 
-    let document = content.replace("{{article}}", &html);
+    let document = content
+        .replace("{{content}}", &html)
+        .replace("{{title}}", &metadata.title)
+        .replace("{{description}}", &metadata.description)
+        .replace("{{publication_status}}", &metadata.published.to_string());
 
     let html_file = match File::create(source.with_extension("html")) {
         Ok(handle) => handle,
@@ -135,13 +133,13 @@ pub fn publish(source: &Path) -> Result<(), Box<dyn error::Error>> {
     //    writer.write(html_output.as_bytes())?;
     //    writer.write("</article>".as_bytes())?;
 
-    Ok(())
+    Ok(source.with_extension("html"))
 }
 
-fn load_template(name: &'static str, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn error::Error>> {
+fn load_template(name: &str, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn error::Error>> {
     let cwd = env::current_dir()?.join("templates");
 
-    let template_path = cwd.join(name);
+    let template_path = cwd.join(name).with_extension("html");
     trace!("Loading template from {:#?}", &template_path);
 
     let mut template_file = match File::open(&template_path) {

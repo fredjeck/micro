@@ -6,10 +6,10 @@ use regex::Regex;
 use serde_yaml::Value;
 
 pub struct Metadata {
-    layout: String,
-    title: String,
-    description: String,
-    published: DateTime<FixedOffset>,
+    pub layout: String,
+    pub title: String,
+    pub description: String,
+    pub published: DateTime<FixedOffset>,
 }
 
 impl Display for Metadata {
