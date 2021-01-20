@@ -3,12 +3,12 @@ layout: article
 published-on: 2021-01-01T20:00:00Z
 title: Blogging Like a Boss  
 description: This is a long long description
-  and uses multi line description 
-  even two line 
+  and uses multi line description
+  even two lines
 ---
 # Why Micro 
 
-Before Facebook killed it, I had a blog, I used it to keep my friends which at that time were scattered all over the world, updated about what was going on in my life. It was also the place were I kept records about all my discoveries and thougts, may they be CS related or not. With everybody moving to Facebook, I stopped updating it and finally decided to delete it one year later...
+Before Facebook killed it, I had a blog, I used it to keep my friends which at that time were scattered all over the world, updated about what was going on in my life. It was also the place were I kept records about all my discoveries and thougts, may they be CS related or not. With everybody moving to Facebook, I stopped updating it and finally decided to delete it one year later... 
 
 I'm must admit that I'm nostalgic about the time where a website was just made of vanilla HTML, focusing on the content and less on the gift-wrapping and fancy UI stuff. The time where pages could be downloaded in the blink of an eye (yeah maybe not totally true as at this period I was using a 56k phone modem with limited monthly download capacity) and were just a few kilos and not heavyweight webpack bundled js/css/images (did I mention that developing Angular apps is one facet of my job ☺ ?) fully stuffed with cookies and trackers (hey do you remember cookiepal ?!).
 

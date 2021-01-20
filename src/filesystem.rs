@@ -1,5 +1,5 @@
 use log::{info, warn};
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 use std::fs;
 use std::path::Path;
 use std::thread::JoinHandle;
@@ -16,16 +16,16 @@ use std::{thread, time};
 /// * `recursive` - If true, will recursively look for changes in sub directories
 /// * `poll_frequency` - Interval in milliseconds between file changes scans  
 pub fn make_watcher(
-    path: &'static Path,
+    path: PathBuf,
     handler: fn(path: &Path),
     recursive: bool,
     poll_frequency: u64,
 ) -> JoinHandle<()> {
-    info!("Watching {}", path.to_str().unwrap());
+    info!("Watching {} for changes", path.to_str().unwrap());
     let mut last_run = SystemTime::now();
     let child = thread::spawn(move || loop {
 
-        let metadata = match fs::metadata(path){
+        let metadata = match fs::metadata(&path){
             Ok(m) => m,
             Err(e) => panic!("Unable to monitor '{}' for changes, please make sure the path exits and points to a directory\n{}", path.to_str().unwrap(), e)
         };
@@ -34,7 +34,7 @@ pub fn make_watcher(
             panic!("Unable to monitor '{}' for changes, please make sure the path exits and points to a directory", path.to_str().unwrap());
         }
 
-        walk_dir(path, last_run, handler, recursive).unwrap();
+        walk_dir(&path, last_run, handler, recursive).unwrap();
         last_run = SystemTime::now();
         thread::sleep(time::Duration::from_millis(poll_frequency));
     });
@@ -42,7 +42,10 @@ pub fn make_watcher(
     child
 }
 
-/// Recursively iterates through the items in a directorry scanning for changes
+/// Iterates through the elements nested under the provided path scanning for changes.
+///
+/// Handler function will be invoked for any element which modification timestamp is older than the given **ref_time**.
+/// This function will return whenever all the items (and sub-items if recursive is set to true) are scanned.
 fn walk_dir(
     path: &Path,
     ref_time: std::time::SystemTime,
