@@ -1,5 +1,5 @@
 use log::{info, warn};
-use std::{error::Error, path::PathBuf};
+use std::{error::Error, ffi::OsStr, path::PathBuf};
 use std::fs;
 use std::path::Path;
 use std::thread::JoinHandle;
@@ -34,7 +34,7 @@ pub fn make_watcher(
             panic!("Unable to monitor '{}' for changes, please make sure the path exits and points to a directory", path.to_str().unwrap());
         }
 
-        walk_dir(&path, last_run, handler, recursive).unwrap();
+        scan_changes(&path, last_run, handler, recursive).unwrap();
         last_run = SystemTime::now();
         thread::sleep(time::Duration::from_millis(poll_frequency));
     });
@@ -46,7 +46,7 @@ pub fn make_watcher(
 ///
 /// Handler function will be invoked for any element which modification timestamp is older than the given **ref_time**.
 /// This function will return whenever all the items (and sub-items if recursive is set to true) are scanned.
-fn walk_dir(
+fn scan_changes(
     path: &Path,
     ref_time: std::time::SystemTime,
     handler: fn(path: &Path),
@@ -79,7 +79,50 @@ fn walk_dir(
                 }
             }
         } else if recursive {
-            walk_dir(filepath, ref_time, handler, recursive)?;
+            scan_changes(filepath, ref_time, handler, recursive)?;
+        }
+    }
+
+    Ok(())
+}
+
+
+/// Iterates through the elements nested under the provided path searching for files with the given extension.
+///
+/// Handler function will be invoked for any element which modification timestamp is older than the given **ref_time**.
+/// This function will return whenever all the items (and sub-items if recursive is set to true) are scanned.
+pub fn walk_dir(
+    path: &Path,
+    extension: &str,
+    handler: fn(path: &Path),
+    recursive: bool,
+) -> Result<(), Box<dyn Error>> {
+    let contents = match fs::read_dir(path) {
+        Ok(d) => d,
+        Err(err) => {
+            warn!("Unable to read '{}' contents\n{}", path.to_str().unwrap(), err);
+            return Ok(());
+        }
+    };
+
+    for entry in contents {
+        let pathbuf = entry?.path();
+        let filepath = pathbuf.as_path();
+
+        let metadata = match fs::metadata(filepath) {
+            Ok(md) => md,
+            Err(err) => {
+                warn!("Unable to stat '{}'\n{}", path.to_str().unwrap(), err);
+                continue;
+            }
+        };
+
+        if metadata.is_file() {
+            if pathbuf.extension() == Some(OsStr::new(extension)) {
+                handler(filepath);
+            }
+        } else if recursive {
+            walk_dir(filepath, extension, handler, recursive)?;
         }
     }
 
