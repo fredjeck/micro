@@ -19,10 +19,10 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": ["-d"],
             "cwd": "${workspaceFolder}",
             "env":{
-                "RUST_LOG":"trace"
+                "RUST_LOG":"debug"
             }
         },
         {

@@ -36,6 +36,8 @@ Example with iterators where you need to collect them into a vec
 
 ### Things that feel just wrong
 Lazy static and macros
+Black magic
+Documentation
 
 
 # Links
