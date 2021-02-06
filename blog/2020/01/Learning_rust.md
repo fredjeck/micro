@@ -10,7 +10,7 @@ description: This is a long long description
 # Learning Rust 
 
 ### The compiler
-Use meme full metal jacket sergent hartman
+Use meme full metal jacket sergent hartman  
 
 ### The Syntax
 Hard to read, lifetime indicators
@@ -29,6 +29,7 @@ Use rust analyzer far superior
 Examples are trivial more complex examples could be helpful
 
 ### Options, Results and Question marks everywhere
+But you can use blocks to make it happen
 
 ### Borrowing
 Once borrowed you cant have it back
@@ -38,6 +39,7 @@ Example with iterators where you need to collect them into a vec
 Lazy static and macros
 Black magic
 Documentation
+Not fluent, used to lots of syntactic sugar needed to go back on my ideas and introduce tighter coupling
 
 
 # Links

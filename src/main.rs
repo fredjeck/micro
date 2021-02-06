@@ -6,15 +6,18 @@ mod filesystem;
 
 use clap::{App, Arg};
 use convert::publish;
-use devserver::DevServer;
-use filesystem::{make_watcher, walk_dir};
+use devserver::{Clients, DevServer};
+use filesystem::{make_fs_watcher, walk_dir};
 use log::info;
 use pretty_env_logger;
-use std::path::{Path, PathBuf};
+use tokio::{sync::mpsc::{Receiver, Sender, channel}, task};
+use std::{path::{Path, PathBuf}};
 use std::{env, error::Error, process::Command};
+use futures::future::lazy;
 
 static mut SITE_ROOT: Option<PathBuf> = None;
 static mut TEMPLATES_ROOT: Option<PathBuf> = None;
+static mut CLIENTS: Option<Clients> = None;
 
 #[tokio::main]
 async fn main() {
@@ -66,10 +69,27 @@ async fn main() {
         return;
     }
     info!("Starting development server");
-    make_watcher(src, handle_path_change, true, 1000);
-    make_watcher(templates, handle_template_change, true, 1000);
-
     let obj = Box::leak(Box::new(DevServer::new(src2, 4200, true)));
+    unsafe {
+        CLIENTS = Some(obj.clients());
+    }
+
+    let (mut sender, mut receiver): (Sender<String>, Receiver<String>)=channel(100);
+
+    tokio::task::spawn(async move{
+        loop{
+            let p= match receiver.recv().await {
+                Some(a) => a,
+                None => return
+            };
+            handle_path_change(Path::new(&p));
+        
+        }
+    });
+
+    make_fs_watcher(src, sender, true, 1000);
+    //make_fs_watcher(templates, handle_template_change, true, 1000);
+
     obj.start().await;
 }
 
@@ -94,7 +114,6 @@ fn handle_template_change(p: &Path) {
     }()
     .unwrap();
 }
-
 fn handle_path_change(p: &Path) {
     || -> Result<(), Box<dyn Error>> {
         info!("Processing {}", p.to_str().unwrap());
@@ -104,6 +123,7 @@ fn handle_path_change(p: &Path) {
 
         let html = publish(p)?;
         print!("{:#?}", html);
+
         Command::new("explorer")
             .arg(html.as_os_str())
             .output()
