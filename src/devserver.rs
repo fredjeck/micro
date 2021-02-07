@@ -1,37 +1,43 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use futures::{SinkExt, StreamExt};
+use futures::{Future, SinkExt, StreamExt};
 use log::{debug, error, info};
-use tokio::sync::{RwLock, mpsc::{self, UnboundedReceiver, UnboundedSender}};
+use tokio::sync::{
+    mpsc::{self, UnboundedReceiver, UnboundedSender},
+    RwLock,
+};
 use uuid::Uuid;
 use warp::{
     ws::{Message, WebSocket, Ws},
     Filter, Rejection, Reply,
 };
 
-// https://github.com/zupzup/warp-websockets-example/blob/main/src/main.rs
-
 type Result<T> = std::result::Result<T, Rejection>;
+/// Helper type used to store WebSocket connected client
+pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
+/// A WebSocket connected client
 #[derive(Debug)]
 pub struct Client {
     pub id: String,
-    //pub sender: Option<SplitSink<WebSocket, Message>>,
-    pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
+    pub sender: Option<mpsc::UnboundedSender<Message>>,
 }
-
-pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
 #[derive(Debug, Clone)]
 pub struct DevServer {
-    port: u16,
-    open_browser: bool,
-    www_root: PathBuf,
     clients: Clients,
 }
 
+/// A local web server which includes a WebSocket server
 impl DevServer {
-    pub fn new(www_root: PathBuf, port: u16, open_browser: bool) -> DevServer {
+
+    pub fn new() -> DevServer {
+        DevServer {
+            clients: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub async fn serve(&self, www_root: PathBuf, port: u16, open_browser: bool){
         if !www_root.exists() {
             panic!(format!(
                 "Cannot serve '{:#?}': the path does not exist",
@@ -39,15 +45,6 @@ impl DevServer {
             ));
         }
 
-        DevServer {
-            port: port,
-            open_browser: open_browser,
-            www_root: www_root,
-            clients: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub async fn start(&self) {
         info!("Starting development server");
 
         let connected = self.clients.clone();
@@ -57,21 +54,12 @@ impl DevServer {
             .and(warp::any().map(move || connected.clone()))
             .and_then(handle_ws);
 
-        let root = warp::get().and(warp::fs::dir(self.www_root.clone()));
+        let root = warp::get().and(warp::fs::dir(www_root));
 
         let server = warp::serve(root.or(uplink));
-        server.run(([127, 0, 0, 1], self.port.clone())).await
+        server.run(([127, 0, 0, 1], port)).await
     }
 
-    pub async fn notify_clients(&self, path: String) {
-        self.clients.read().await.iter().for_each(|(_, client)| {
-            debug!("Notifiying client '{}' for '{}'", client.id, path);
-            if let Some(sender) = &client.sender {
-                //let _ = sender.send(Message::text(path.clone()));
-                let _ = sender.send(Ok(Message::text(path.clone())));
-            }
-        });
-    }
 
     pub fn clients(&self) -> Clients {
         self.clients.clone()
@@ -86,16 +74,17 @@ pub async fn con_client_connected(ws: WebSocket, clients: Clients) {
     info!("Live preview instance connected");
 
     let (mut client_ws_sender, mut client_ws_rcv) = ws.split();
-    let (client_sender, mut client_rcv) : (UnboundedSender<std::result::Result<Message, warp::Error>>, UnboundedReceiver<std::result::Result<Message, warp::Error>>)= tokio::sync::mpsc::unbounded_channel();
+    let (client_sender, mut client_rcv): (
+        UnboundedSender<Message>,
+        UnboundedReceiver<Message>,
+    ) = tokio::sync::mpsc::unbounded_channel();
     let id = Uuid::new_v4().to_string();
 
-   
-
-     tokio::task::spawn(async move {
+    tokio::task::spawn(async move {
         while let Some(result) = client_rcv.recv().await {
-            let _ = client_ws_sender.send(result.unwrap()).await;
+            let _ = client_ws_sender.send(result).await;
         }
-     });
+    });
 
     let client = Client {
         id: id.clone(),
@@ -125,8 +114,17 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     let mut locked = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
         if let Some(sender) = &v.sender {
-            //let _ = sender.send(Message::text(path.clone()));
-            let _ = sender.send(Ok(Message::text("Micro live preview")));
+            let _ = sender.send(Message::text("Micro live preview"));
         }
     }
+}
+
+pub async fn notify_clients(clients: &Clients,  path: String) {
+    clients.read().await.iter().for_each(|(_, client)| {
+        debug!("Notifiying client '{}' for '{}'", client.id, path);
+        if let Some(sender) = &client.sender {
+            //let _ = sender.send(Message::text(path.clone()));
+            let _ = sender.send(Message::text(path.clone()));
+        }
+    });
 }

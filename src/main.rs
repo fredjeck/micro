@@ -21,20 +21,19 @@ async fn main() {
     let templates_watcher = watcher::make_fs_watcher(templates_path, sender, true, 1000);
  
 
-    let server = DevServer::new(root_path, 4200, true);
-    let cloned = server.clone(); // Bit odd, to be replaced with a geneator function or access to clients
+    let server = DevServer::new();
+    let server_task = server.serve(root_path, 4200, true);
+    let clients = server.clients(); // Bit odd, to be replaced with a geneator function or access to clients
 
     let consumer = tokio::task::spawn(async move {
         loop {
             let message = receiver.recv().await;
             if let Some(text) = message {
                 info!("File {} changed", text);
-                cloned.notify_clients(text).await;
+                devserver::notify_clients(&clients, text).await;
             }
         }
     });
 
-
-    let server_task = server.start();
     let (_, _, _, _) = join!(templates_watcher, root_watcher, consumer, server_task);
 }
