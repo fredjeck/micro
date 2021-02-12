@@ -44,19 +44,6 @@
     <footer>
     </footer>
   </body>
-  <script type="text/javascript">
-    var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
-  
-    // Connection opened
-    sk.addEventListener('open', function (event) {
-      sk.send('Hello Server!');
-    });
-  
-    // Listen for messages
-    sk.addEventListener('message', function (event) {
-      console.log('Message from server ', event.data); 
-    });
-  
-    sk.send("fart");
-  </script> 
+  <script type="text/javascript" src='/index.js'></script>
+
 </html>
