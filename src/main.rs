@@ -23,7 +23,7 @@ async fn main() {
 
     let server = DevServer::new();
     let server_task = server.serve(root_path, 4200, true);
-    let clients = server.clients(); // Bit odd, to be replaced with a geneator function or access to clients
+    let clients = server.clients(); 
 
     let consumer = tokio::task::spawn(async move {
         loop {

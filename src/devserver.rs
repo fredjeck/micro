@@ -1,11 +1,11 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
 use futures::{Future, SinkExt, StreamExt};
 use log::{debug, error, info};
-use tokio::sync::{
+use tokio::{sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
     RwLock,
-};
+}, time::sleep};
 use uuid::Uuid;
 use warp::{
     ws::{Message, WebSocket, Ws},
@@ -16,7 +16,7 @@ type Result<T> = std::result::Result<T, Rejection>;
 /// Helper type used to store WebSocket connected client
 pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
-/// A WebSocket connected client
+/// A client connected via WebSocket
 #[derive(Debug)]
 pub struct Client {
     pub id: String,
@@ -28,38 +28,46 @@ pub struct DevServer {
     clients: Clients,
 }
 
-/// A local web server which includes a WebSocket server
+/// A local development web server which includes WebSocket support
 impl DevServer {
-
     pub fn new() -> DevServer {
         DevServer {
             clients: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    pub async fn serve(&self, www_root: PathBuf, port: u16, open_browser: bool){
+    /// Starts the local development web server, serving the content of __www_root__.
+    /// If __open_in_browser__ is set to true, the system's default browser will be openened at the specified __root_url__
+    pub async fn serve(&self, www_root: PathBuf, port: u16, open_in_browser: bool) {
         if !www_root.exists() {
             panic!(format!(
-                "Cannot serve '{:#?}': the path does not exist",
+                "Cannot serve content from '{:#?}': the path does not exist",
                 www_root
             ));
         }
 
         info!("Starting development server");
-
-        let connected = self.clients.clone();
+        let connexions = self.clients.clone();
 
         let uplink = warp::path("uplink")
             .and(warp::ws())
-            .and(warp::any().map(move || connected.clone()))
+            .and(warp::any().map(move || connexions.clone()))
             .and_then(handle_ws);
 
         let root = warp::get().and(warp::fs::dir(www_root));
 
         let server = warp::serve(root.or(uplink));
+
+        if open_in_browser {
+            tokio::task::spawn(async move {
+                sleep(Duration::from_millis(5000)).await;
+                let url = format!("http://localhost:{}", &port);
+                webbrowser::open(&url).unwrap();
+            });
+        }
+
         server.run(([127, 0, 0, 1], port)).await
     }
-
 
     pub fn clients(&self) -> Clients {
         self.clients.clone()
@@ -74,10 +82,8 @@ pub async fn con_client_connected(ws: WebSocket, clients: Clients) {
     info!("Live preview instance connected");
 
     let (mut client_ws_sender, mut client_ws_rcv) = ws.split();
-    let (client_sender, mut client_rcv): (
-        UnboundedSender<Message>,
-        UnboundedReceiver<Message>,
-    ) = tokio::sync::mpsc::unbounded_channel();
+    let (client_sender, mut client_rcv): (UnboundedSender<Message>, UnboundedReceiver<Message>) =
+        tokio::sync::mpsc::unbounded_channel();
     let id = Uuid::new_v4().to_string();
 
     tokio::task::spawn(async move {
@@ -119,7 +125,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     }
 }
 
-pub async fn notify_clients(clients: &Clients,  path: String) {
+pub async fn notify_clients(clients: &Clients, path: String) {
     clients.read().await.iter().for_each(|(_, client)| {
         debug!("Notifiying client '{}' for '{}'", client.id, path);
         if let Some(sender) = &client.sender {
