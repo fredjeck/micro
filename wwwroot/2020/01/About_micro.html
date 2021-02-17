@@ -1,49 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <style>*{margin:0;--tc:#111;--bc:#fff;--hc:#384}@media (prefers-color-scheme:dark){*{--tc:#fff;--bc:#111;--hc:#fb0}}body{font:18px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:var(--tc);background:var(--bc);max-width:36em;margin:0 auto;padding:0 .7em;text-align:justify}main{margin-bottom:3em}a{text-decoration:none;color:var(--hc)}a:hover{text-decoration:underline}br,h2,header,ul{margin-bottom:1em}ul{padding-left:1em}br{content:" ";display:block}section,section:target~section:last-of-type{display:none}section:last-of-type,section:target{display:inherit}header{display:flex;justify-content:space-between;align-items:center}h1{font-size:1.7em;font-weight:700}nav a{margin-left:.75em}</style>
-    <meta content="width=device-width,initial-scale=1" name="viewport" />
-    <title>Blogging Like a Boss</title>
-    <meta
-      content="Blogging Like a Boss"
-      property="og:title"
-    />
-    <meta
-      content="This is a long long description and uses multi line description even two lines"
-      name="description" 
-    />
-    <meta
-      content="This is a long long description and uses multi line description even two lines"
-      property="og:description"
-    />
-    <meta content="https://minwiz.com/og.png" property="og:image" />
-    <meta content="summary" name="twitter:card" />
 
-    <link inline rel="stylesheet" href="stylesheet.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Blogging Like a Boss</h1>
-      <h5>2021-01-01 20:00:00 +00:00</h5>
-    </header>
+<head>
+  <style>
+    * {
+      margin: 0;
+      --tc: #111;
+      --bc: #fff;
+      --hc: #384
+    }
 
-    <main>
-     <article>
-         <h1>Why Micro</h1>
+    @media (prefers-color-scheme:dark) {
+      * {
+        --tc: #fff;
+        --bc: #111;
+        --hc: #fb0
+      }
+    }
+
+    body {
+      font: 18px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--tc);
+      background: var(--bc);
+      max-width: 36em;
+      margin: 0 auto;
+      padding: 0 .7em;
+      text-align: justify
+    }
+
+    main {
+      margin-bottom: 3em
+    }
+
+    a {
+      text-decoration: none;
+      color: var(--hc)
+    }
+
+    a:hover {
+      text-decoration: underline
+    }
+
+    br,
+    h2,
+    header,
+    ul {
+      margin-bottom: 1em
+    }
+
+    ul {
+      padding-left: 1em
+    }
+
+    br {
+      content: " ";
+      display: block
+    }
+
+    section,
+    section:target~section:last-of-type {
+      display: none
+    }
+
+    section:last-of-type,
+    section:target {
+      display: inherit
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    h1 {
+      font-size: 1.7em;
+      font-weight: 700
+    }
+
+    nav a {
+      margin-left: .75em
+    }
+  </style>
+  <meta content="width=device-width,initial-scale=1" name="viewport" />
+  <title>Blogging Like a Boss</title>
+  <meta content="Blogging Like a Boss" property="og:title" />
+  <meta content="This is a long long description and uses multi line description even two lines" name="description" />
+  <meta content="This is a long long description and uses multi line description even two lines" property="og:description" />
+  <meta content="https://minwiz.com/og.png" property="og:image" />
+  <meta content="summary" name="twitter:card" />
+
+  <link inline rel="stylesheet" href="stylesheet.css" />
+</head>
+
+<body>
+  <header>
+    <h1>Blogging Like a Boss</h1>
+    <h5>2021-01-01 20:00:00 +00:00</h5>
+  </header>
+
+  <main>
+    <article>
+      <h1>Why Micro</h1>
 <p>Before Facebook killed it, I had a blog, I used it to keep my friends which at that time were scattered all over the world, updated about what was going on in my life. It was also the place were I kept records about all my discoveries and thougts, may they be CS related or not. With everybody moving to Facebook, I stopped updating it and finally decided to delete it one year later… </p>
 <p>I’m must admit that I’m nostalgic about the time where a website was just made of vanilla HTML, focusing on the content and less on the gift-wrapping and fancy UI stuff. The time where pages could be downloaded in the blink of an eye (yeah maybe not totally true as at this period I was using a 56k phone modem with limited monthly download capacity) and were just a few kilos and not heavyweight webpack bundled js/css/images (did I mention that developing Angular apps is one facet of my job ☺ ?) fully stuffed with cookies and trackers (hey do you remember cookiepal ?!).</p>
 <p>I must also confess that I’m always falling in admiration whenever I visit <a href="https://fabiensanglard.net/">Fabien Sanglard’s</a> website which is incredibly lean and efficient.</p>
 <p>All the above combine are just fueling my need to reboot a personal website. want it to be simple fast and efficient for the reader. I also want it to be fast simple and efficient for me to write it (read : I dont want to write any HTML) - in order to focus on the content.</p>
 <p>There are plenty of free and open source blogging and authoring solutions out there and I did had a look at them. But I think this could also be a nice opportunity to start with a blank sheet and learn something new - this something being Rust, a language I have been a long time lurker but did not had the opportunity to use on a project.</p>
 <p>You might get it now, this first post/article will serve as a bootstrap for this project following the good’ol dogfooding principle.</p>
-<p>https://minwiz.com/  </p>
+<p>https://minwiz.com/     </p>
 
-     </article>
-    </main>
+    </article>
+  </main>
 
-    <footer>
-    </footer>
-  </body>
-  <script type="text/javascript" src='/index.js'></script>
+  <footer>
+  </footer>
+</body>
+<script type="text/javascript">
+  var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
+
+  // Connection opened
+  sk.addEventListener('open', function (event) {
+    sk.send('Hello Server!');
+  });
+
+  // Listen for messages
+  sk.addEventListener('message', function (event) {
+    console.log('Message from server ', event.data);
+  });
+
+  sk.send("fart");
+</script>
 
 </html>

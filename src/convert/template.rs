@@ -1,14 +1,19 @@
-use std::{env, error, fs::File, io::Read};
+use std::{env, error, fs::File, io::Read, path::PathBuf};
 
 use log::{trace};
 use simple_error::bail;
-use crate::convert::Metadata;
+use crate::convert::MarkdownMetaData;
 
-pub fn load_from(name: &str, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn error::Error>> {
-    let cwd = env::current_dir()?.join("templates");
+/// Loads an HTML template with the given name (without file extension) and returns its contents
+pub fn load_template(name: &str, templates_root: Option<PathBuf>, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn error::Error+Sync+Send>> {
+   
+    let cwd = match templates_root {
+        Some(path) => path, 
+        None => env::current_dir()?.join("templates")
+    };
 
     let template_path = cwd.join(name).with_extension("html");
-    trace!("Loading template from {:#?}", &template_path);
+    trace!("Loading template {} from {:#?}", &name, &template_path);
 
     let mut template_file = match File::open(&template_path) {
         Ok(handle) => handle,
@@ -31,11 +36,12 @@ pub fn load_from(name: &str, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn erro
     Ok(bytes)
 }
 
-pub fn merge_template(template: &str, metadata: &Metadata, html_content: &str) -> String {
+/// Merges a template with the provided metadata
+pub fn merge_template(template: &str, metadata: &MarkdownMetaData, html_content: &str) -> String {
     let document = template
         .replace("{{content}}", html_content)
-        .replace("{{title}}", &metadata.title)
-        .replace("{{description}}", &metadata.description)
+        .replace("{{title}}", &metadata.title.as_ref().unwrap_or(&"".to_string()))
+        .replace("{{description}}", &metadata.description.as_ref().unwrap_or(&"".to_string()))
         .replace("{{publication_status}}", &metadata.published.to_string());
 
     document

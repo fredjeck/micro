@@ -9,11 +9,11 @@ edition = "2018"
 [dependencies]
 #log = "0.4"
 #pretty_env_logger = "0.4"
-#pulldown-cmark = { version = "0.8", default-features = false, features = ["simd"] }
-#chrono = "0.4"
-#simple-error = "0.2.2"
-#regex = "1"
-#serde_yaml = "0.8.15"
+pulldown-cmark = { version = "0.8", default-features = false, features = ["simd"] }
+chrono = "0.4"
+simple-error = "0.2.2"
+regex = "1"
+serde_yaml = "0.8.15"
 #tokio = { version = "1", features = ["full"] }
 #warp = "0.3"
 #clap = "3.0.0-beta.2"

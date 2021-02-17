@@ -83,10 +83,10 @@
     }
   </style>
   <meta content="width=device-width,initial-scale=1" name="viewport" />
-  <title>{{title}}</title>
-  <meta content="{{title}}" property="og:title" />
-  <meta content="{{description}}" name="description" />
-  <meta content="{{description}}" property="og:description" />
+  <title>Blogging Like a Boss</title>
+  <meta content="Blogging Like a Boss" property="og:title" />
+  <meta content="This is a long long description and uses multi line description even two lines" name="description" />
+  <meta content="This is a long long description and uses multi line description even two lines" property="og:description" />
   <meta content="https://minwiz.com/og.png" property="og:image" />
   <meta content="summary" name="twitter:card" />
 
@@ -95,18 +95,34 @@
 
 <body>
   <header>
-    <h1>{{title}}</h1>
-    <h5>{{publication_status}}</h5>
+    <h1>Blogging Like a Boss</h1>
+    <h5>2021-01-01 20:00:00 +00:00</h5>
   </header>
 
   <main>
     <article>
-      {{content}}
+      <h1>This is the index baby</h1>
+
     </article>
   </main>
 
   <footer>
   </footer>
 </body>
-<script type="text/javascript" src='/index.js'></script> 
+<script type="text/javascript">
+  var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
+
+  // Connection opened
+  sk.addEventListener('open', function (event) {
+    sk.send('Hello Server!');
+  });
+
+  // Listen for messages
+  sk.addEventListener('message', function (event) {
+    console.log('Message from server ', event.data);
+  });
+
+  sk.send("fart");
+</script>
+
 </html>

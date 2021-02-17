@@ -20,4 +20,4 @@ There are plenty of free and open source blogging and authoring solutions out th
 
 You might get it now, this first post/article will serve as a bootstrap for this project following the good'ol dogfooding principle.  
 
-https://minwiz.com/  
+https://minwiz.com/     
