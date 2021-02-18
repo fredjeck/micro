@@ -3,11 +3,13 @@ mod devserver;
 mod watcher;
 
 use std::{
+    env,
     ffi::OsStr,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 
-use convert::{markdown_to_html};
+use clap::{App, Arg};
+use convert::markdown_to_html;
 use devserver::DevServer;
 use log::info;
 use tokio::{
@@ -19,8 +21,46 @@ use tokio::{
 async fn main() {
     pretty_env_logger::init();
 
-    let root_path = PathBuf::from("G:\\Workspaces\\Rust\\micro\\wwwroot\\");
-    let templates_path = PathBuf::from("G:\\Workspaces\\Rust\\micro\\templates\\");
+    let matches = App::new("micro")
+    .author("FredJeck")
+    .about("A super simple static website generator")
+    .arg(Arg::new("SOURCE")
+        .short('s')
+        .long("src")
+        .about("Path to the directory where the markdown source files are stored")
+        .default_value(env::current_dir().unwrap().join("wwwroot").to_str().unwrap())
+        .validator(|p|{
+            if !Path::new(p).exists(){
+                return Err(format!("Unable to find '{}'. Please make sure the 'src' argument points to a valid directory", p));
+            }
+            Ok(())
+        }))
+    .arg(Arg::new("DEV")
+        .short('d')
+        .long("dev")
+        .takes_value(false)
+        .about("Runs micro in development mode spawning a child process monitoring for pages and template changes and automatically publishing them. A local webserver will also be started and will serve the edited resources"))
+    .arg(Arg::new("TEMPLATES")
+        .short('t')
+        .long("templates")
+        .about("Path to the directory where the pages templates are located")
+        .default_value(env::current_dir().unwrap().join("templates").to_str().unwrap())
+        .validator(|p|{
+            if !Path::new(p).exists(){
+                return Err(format!("Unable to find '{}'. Please make sure the 'templates' argument points to a valid directory", p));
+            }
+            Ok(())
+        }))
+    .get_matches();
+
+    let root_path = match matches.value_of("SOURCE") {
+        Some(s) => PathBuf::from(s),
+        None => panic!("Source path cannot be found"),
+    };
+    let templates_path = match matches.value_of("TEMPLATES") {
+        Some(s) => PathBuf::from(s),
+        None => panic!("Templates path cannot be found"),
+    };
 
     start(root_path, templates_path).await;
 }
@@ -43,17 +83,16 @@ async fn start(root_path: PathBuf, templates_path: PathBuf) {
                 info!("File {} changed", &text);
                 let file_path = Path::new(&text);
 
-                if file_path.starts_with(templates_path.to_path_buf()) {
-                    // Will have to deal with template changes and maybe issue a reload command
-                    continue;
-                }
-
                 let extension = match file_path.extension() {
                     Some(e) => e,
                     None => OsStr::new(""),
                 };
 
-                if extension == "md" {
+                if file_path.starts_with(templates_path.to_path_buf()) {
+                    if extension == "html" {}
+                    // Will have to deal with template changes and maybe issue a reload command
+                    continue;
+                } else if extension == "md" {
                     if let Ok(html) = markdown_to_html(
                         file_path.to_path_buf(),
                         None,
