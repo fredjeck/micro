@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, fs::File, path::Path, io::{prelude::*}};
 
 use chrono::{DateTime, Utc};
 use log::{error, warn};
@@ -6,7 +6,7 @@ use regex::Regex;
 use serde_yaml::Value;
 
 /// Template to apply to a markdown file during its rendering.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Layout {
     Article,
     Index,
@@ -113,5 +113,34 @@ impl MarkdownMetaData  {
                 }
             },
         })
+    }
+
+    // Gets the markdown metadata from the given file
+    pub fn from_file(source:&Path) -> Option<MarkdownMetaData>{
+        let mut content = Vec::new();
+        let mut source_file = match File::open(&source) {
+            Ok(handle) => handle,
+            Err(error) => {
+                error!("The following error occurred while opening {:#?} : {:#?}", error, &source);
+                return None;
+            }
+        };
+        match source_file.read_to_end(&mut content) {
+            Ok(_) => {}
+            Err(error) => {
+                error!("The following error occurred while reading {:#?} : {:#?}", error, &source);
+                return None;
+            }
+        };
+    
+        let mut utf8_content = match String::from_utf8(content) {
+            Ok(m) => m,
+            Err(error) => {
+                error!("UTF8 conversion error occured for {:#?} ...skipping : {:#?}", &source, error);
+                return None;
+            }
+        };
+
+        MarkdownMetaData::extract(&mut utf8_content)
     }
 }

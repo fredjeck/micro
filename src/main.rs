@@ -89,7 +89,24 @@ async fn start(root_path: PathBuf, templates_path: PathBuf) {
                 };
 
                 if file_path.starts_with(templates_path.to_path_buf()) {
-                    if extension == "html" {}
+                    if extension == "html" {
+                        let mut matches:Vec<PathBuf> = vec![];
+                        let layout = convert::metadata::Layout::from(file_path.file_name().unwrap().to_str().unwrap());
+                        convert::template::find_usage(&root_path, &layout, &mut matches);
+                        for file in matches   {
+                            if let Ok(html) = markdown_to_html(
+                                file,
+                                None,
+                                templates_path.to_path_buf(),
+                            ) {
+                                if let Ok(p) = html.strip_prefix(&root_path) {
+                                    let str = p.to_str().unwrap();
+                                    devserver::send_message(&clients, str.replace(MAIN_SEPARATOR, "/"))
+                                        .await;
+                                }
+                            }
+                        }
+                    }
                     // Will have to deal with template changes and maybe issue a reload command
                     continue;
                 } else if extension == "md" {

@@ -1,8 +1,8 @@
-use std::{env, error, fs::File, io::Read, path::PathBuf};
+use std::{env, error, fs::File, io::Read, path::{Path, PathBuf}};
 
-use log::{trace};
+use log::{trace, warn};
 use simple_error::bail;
-use crate::convert::MarkdownMetaData;
+use crate::convert::{MarkdownMetaData, metadata::Layout};
 
 /// Loads an HTML template with the given name (without file extension) and returns its contents
 pub fn load_template(name: &str, templates_root: Option<PathBuf>, buffer: &mut Vec<u8>) -> Result<usize, Box<dyn error::Error+Sync+Send>> {
@@ -45,4 +45,46 @@ pub fn merge_template(template: &str, metadata: &MarkdownMetaData, html_content:
         .replace("{{publication_status}}", &metadata.published.to_string());
 
     document
+}
+
+pub fn find_usage(root_path: &Path, layout: &Layout, matches: &mut Vec<PathBuf>){
+
+    let directory = match std::fs::read_dir(&root_path) { 
+        Ok(d) => d,
+        Err(e) => {
+            warn!("Unable to read '{:#?}' content, the directory will be skipped : {}", &root_path, e);
+            return ();
+        }
+    };
+
+    for entry in directory {
+        let item_path = match entry {
+            Ok(p) => p.path(),
+            Err(e) => {
+                warn!(
+                    "An error occured while iterating through '{:#?}', the faulty item will be skipped : {}",
+                    &root_path, e
+                );
+                continue;
+            }
+        };
+
+        let metadata = match std::fs::metadata(&item_path) {
+            Ok(md) => md,
+            Err(err) => {
+                warn!("Unable to stat '{:#?}', this item will be skipped\n{}", &item_path, err);
+                continue;
+            }
+        };
+
+        if metadata.is_file() {
+            if let Some(metadata) = MarkdownMetaData::from_file(&item_path){
+                if metadata.layout == *layout {
+                    matches.push(item_path);
+                }
+            }
+        } else  {
+            find_usage(&item_path, layout, matches);
+        }
+    }
 }
