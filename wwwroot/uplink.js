@@ -12,5 +12,3 @@ sk.addEventListener('message', function (event) {
         document.location = document.location.origin + '/' + event.data;
     }
 });
-
-sk.send("fart");

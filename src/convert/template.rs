@@ -1,4 +1,4 @@
-use std::{env, error, fs::File, io::Read, path::{Path, PathBuf}};
+use std::{collections::HashMap, env, error, fs::{self, DirEntry, File}, io::{Read}, path::{Path, PathBuf}, time::SystemTime};
 
 use log::{trace, warn};
 use simple_error::bail;
@@ -42,8 +42,8 @@ pub fn merge_template(template: &str, metadata: &MarkdownMetaData, html_content:
         .replace("{{content}}", html_content)
         .replace("{{title}}", &metadata.title.as_ref().unwrap_or(&"".to_string()))
         .replace("{{description}}", &metadata.description.as_ref().unwrap_or(&"".to_string()))
-        .replace("{{publication_status}}", &metadata.published.to_string());
-
+        .replace("{{publication_status}}", &metadata.published.to_string())
+        .replace("{{source}}", &metadata.source.as_ref().unwrap_or(&"".to_string()));
     document
 }
 
@@ -87,4 +87,33 @@ pub fn find_usage(root_path: &Path, layout: &Layout, matches: &mut Vec<PathBuf>)
             find_usage(&item_path, layout, matches);
         }
     }
+}
+
+pub fn last_changed(templates_path: &Path)->Result<HashMap<Layout, SystemTime>, Box<dyn error::Error>> {
+    let templates = match fs::read_dir(&templates_path) {
+        Ok(t) => {
+            let (success, _): (Vec<_>, Vec<_>) = t.partition(Result::is_ok);
+            success
+                .into_iter()
+                .map(Result::unwrap)
+                .collect::<Vec<DirEntry>>()
+        }
+        Err(e) => {
+            bail!("Unable to access templates path '{:#?}': {}", &templates_path, e)
+        }
+    };
+
+    let tuples = templates.into_iter().map(|entry| {
+        let stamp = entry.metadata().unwrap().modified().unwrap();
+        let filename = &entry.file_name();
+        let n = Path::new(filename).file_stem().unwrap().to_str().unwrap();
+        (Layout::from(n), stamp)
+    });
+
+    let templates_registry: HashMap<Layout, SystemTime> = tuples.collect();
+    for (k,v) in &templates_registry{
+        println!("{}:{:#?}", k, v);
+    }
+
+    Ok(templates_registry)
 }

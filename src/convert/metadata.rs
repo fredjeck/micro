@@ -6,10 +6,11 @@ use regex::Regex;
 use serde_yaml::Value;
 
 /// Template to apply to a markdown file during its rendering.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Layout {
     Article,
     Index,
+    Undefined
 }
 
 impl Display for Layout {
@@ -20,6 +21,7 @@ impl Display for Layout {
             match self {
                 Layout::Article => "Article",
                 Layout::Index => "Index",
+                Layout::Undefined => "Undefined",
             }
         )
     }
@@ -29,7 +31,8 @@ impl From<&str> for Layout {
     fn from(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
             "index" => Self::Index,
-            _ => return Self::Article,
+            "article" => Self::Article,
+            _ => return Self::Undefined,
         }
     }
 }
@@ -39,6 +42,7 @@ pub struct MarkdownMetaData {
     pub layout: Layout,
     pub title: Option<String>,
     pub description: Option<String>,
+    pub source: Option<String>,
     pub published: DateTime<Utc>,
 }
 
@@ -96,6 +100,7 @@ impl MarkdownMetaData  {
                 Some(s) => Some(s.to_string()),
                 _ => None,
             },
+            source: None,
             published: match yaml["published-on"].as_str() {
                 Some(s) => match DateTime::parse_from_rfc3339(s) {
                     Ok(d) => DateTime::from(d),

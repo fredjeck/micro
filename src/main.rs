@@ -1,17 +1,21 @@
 mod convert;
 mod devserver;
+mod filesystem;
 mod watcher;
 
 use std::{
     env,
+    error::Error,
     ffi::OsStr,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 
 use clap::{App, Arg};
-use convert::markdown_to_html;
+use convert::{markdown_to_html, metadata, template};
 use devserver::DevServer;
+use filesystem::walk_dir;
 use log::info;
+use simple_error::bail;
 use tokio::{
     join,
     sync::mpsc::{Receiver, Sender},
@@ -51,6 +55,8 @@ async fn main() {
             }
             Ok(())
         }))
+    .subcommand(App::new("verify").about("Scans for out of date published files"))
+    .subcommand(App::new("publish").about("Scans for out of date published files and republish them if needed"))
     .get_matches();
 
     let root_path = match matches.value_of("SOURCE") {
@@ -62,10 +68,54 @@ async fn main() {
         None => panic!("Templates path cannot be found"),
     };
 
-    start(root_path, templates_path).await;
+    if let Some(_) = matches.subcommand_matches("verify") {
+        verify(root_path.clone(), templates_path.clone());
+    }
+
+    if let Some(_) = matches.subcommand_matches("publish") {
+        verify(root_path.clone(), templates_path.clone());
+    }
+
+    if 1 == matches.occurrences_of("DEV") {
+        start_dev_server(root_path, templates_path).await;
+    }
 }
 
-async fn start(root_path: PathBuf, templates_path: PathBuf) {
+async fn verify(root_path: PathBuf, templates_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    let templates_ts = match template::last_changed(&templates_path) {
+        Ok(t) => t,
+        Err(e) => bail!(e),
+    };
+
+    walk_dir(root_path, "md", true, &move |p: &Path| {
+        let markdown = p.metadata().unwrap();
+        let html = p.with_extension("html").metadata().unwrap();
+
+        let mdchange = markdown.modified().unwrap();
+        let htchange = html.modified().unwrap();
+
+        let mut publish = false;
+        if mdchange > htchange {
+            publish = true;
+        } else {
+            // Check if the template changed
+            let md = metadata::MarkdownMetaData::from_file(p);
+            if let Some(metadata) = md {
+                if let Some(tplchange) = templates_ts.get(&metadata.layout) {
+                    publish = *tplchange > mdchange;
+                }
+            }
+        }
+
+        if publish {
+            convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned());
+        }
+    });
+
+    Ok(())
+}
+
+async fn start_dev_server(root_path: PathBuf, templates_path: PathBuf) {
     let (sender, mut receiver): (Sender<String>, Receiver<String>) =
         tokio::sync::mpsc::channel(100);
 
@@ -90,19 +140,22 @@ async fn start(root_path: PathBuf, templates_path: PathBuf) {
 
                 if file_path.starts_with(templates_path.to_path_buf()) {
                     if extension == "html" {
-                        let mut matches:Vec<PathBuf> = vec![];
-                        let layout = convert::metadata::Layout::from(file_path.file_name().unwrap().to_str().unwrap());
+                        let mut matches: Vec<PathBuf> = vec![];
+                        let layout = convert::metadata::Layout::from(
+                            file_path.file_name().unwrap().to_str().unwrap(),
+                        );
                         convert::template::find_usage(&root_path, &layout, &mut matches);
-                        for file in matches   {
-                            if let Ok(html) = markdown_to_html(
-                                file,
-                                None,
-                                templates_path.to_path_buf(),
-                            ) {
+                        for file in matches {
+                            if let Ok(html) =
+                                markdown_to_html(file, None, templates_path.to_path_buf())
+                            {
                                 if let Ok(p) = html.strip_prefix(&root_path) {
                                     let str = p.to_str().unwrap();
-                                    devserver::send_message(&clients, str.replace(MAIN_SEPARATOR, "/"))
-                                        .await;
+                                    devserver::send_message(
+                                        &clients,
+                                        str.replace(MAIN_SEPARATOR, "/"),
+                                    )
+                                    .await;
                                 }
                             }
                         }

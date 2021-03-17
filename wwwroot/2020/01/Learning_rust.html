@@ -1,96 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <style>
-    * {
-      margin: 0;
-      --tc: #111;
-      --bc: #fff;
-      --hc: #384
-    }
-
-    @media (prefers-color-scheme:dark) {
-      * {
-        --tc: #fff;
-        --bc: #111;
-        --hc: #fb0
-      }
-    }
-
-    body {
-      font: 18px/1.4 -apple-system, BlinkMacSystemFont, sans-serif;
-      color: var(--tc);
-      background: var(--bc);
-      max-width: 36em;
-      margin: 0 auto;
-      padding: 0 .7em;
-      text-align: justify
-    }
-
-    main {
-      margin-bottom: 3em
-    }
-
-    a {
-      text-decoration: none;
-      color: var(--hc)
-    }
-
-    a:hover {
-      text-decoration: underline
-    }
-
-    br,
-    h2,
-    header,
-    ul {
-      margin-bottom: 1em
-    }
-
-    ul {
-      padding-left: 1em
-    }
-
-    br {
-      content: " ";
-      display: block
-    }
-
-    section,
-    section:target~section:last-of-type {
-      display: none
-    }
-
-    section:last-of-type,
-    section:target {
-      display: inherit
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center
-    }
-
-    h1 {
-      font-size: 1.7em;
-      font-weight: 700
-    }
-
-    nav a {
-      margin-left: .75em
-    }
-  </style>
   <meta content="width=device-width,initial-scale=1" name="viewport" />
   <title>Blogging Like a Boss</title>
   <meta content="Blogging Like a Boss" property="og:title" />
   <meta content="This is a long long description and uses multi line description even two lines" name="description" />
   <meta content="This is a long long description and uses multi line description even two lines" property="og:description" />
   <meta content="https://minwiz.com/og.png" property="og:image" />
-  <meta content="summary" name="twitter:card" />
-
-  <link inline rel="stylesheet" href="stylesheet.css" />
+  <meta content="This is a long long description and uses multi line description even two lines" name="twitter:card" />
+<meta charset="UTF-8">
+  <link inline rel="stylesheet" href="/styles.css" /> 
 </head>
 
 <body>
@@ -98,6 +17,8 @@
     <h1>Blogging Like a Boss</h1>
     <h5>2021-01-01 20:00:00 UTC</h5>
   </header>
+
+  <hr>
 
   <main>
     <article>
@@ -132,20 +53,6 @@ Not fluent, used to lots of syntactic sugar needed to go back on my ideas and in
   <footer>
   </footer>
 </body>
-<script type="text/javascript">
-  var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
-
-  // Connection opened
-  sk.addEventListener('open', function (event) {
-    sk.send('Hello Server!');
-  });
-
-  // Listen for messages
-  sk.addEventListener('message', function (event) {
-    console.log('Message from server ', event.data);
-  });
-
-  sk.send("fart");
-</script>
+<script type="text/javascript" src="/uplink.js"></script>
 
 </html>

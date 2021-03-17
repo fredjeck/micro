@@ -9,10 +9,7 @@ use tokio::{
     time::sleep,
 };
 use uuid::Uuid;
-use warp::{
-    ws::{Message, WebSocket, Ws},
-    Filter, Rejection, Reply,
-};
+use warp::{Filter, Rejection, Reply, ws::{Message, WebSocket, Ws}};
 
 type Result<T> = std::result::Result<T, Rejection>;
 /// Helper type used to store WebSocket connected client
@@ -63,8 +60,8 @@ impl DevServer {
             .and_then(register_ws_handler);
 
         let root = warp::get().and(warp::fs::dir(www_root));
-
-        let server = warp::serve(root.or(uplink));
+        let filter = root.or(uplink);
+        let server = warp::serve(filter);
 
         let path = match root_url {
             Some(u) => u,
