@@ -42,7 +42,7 @@ pub fn merge_template(template: &str, metadata: &MarkdownMetaData, html_content:
         .replace("{{content}}", html_content)
         .replace("{{title}}", &metadata.title.as_ref().unwrap_or(&"".to_string()))
         .replace("{{description}}", &metadata.description.as_ref().unwrap_or(&"".to_string()))
-        .replace("{{publication_status}}", &metadata.published.to_string())
+        .replace("{{published-on}}", &metadata.published.to_string())
         .replace("{{source}}", &metadata.source.as_ref().unwrap_or(&"".to_string()));
     document
 }
