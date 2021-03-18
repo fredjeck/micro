@@ -23,10 +23,14 @@ use tokio::{
 
 #[tokio::main]
 async fn main() {
+    if let Err(_) = env::var("RUST_LOG"){
+        env::set_var("RUST_LOG", "INFO");
+    }
+
     pretty_env_logger::init();
 
     let matches = App::new("micro")
-    .author("FredJeck")
+    .author("by FredJeck")
     .about("A super simple static website generator")
     .arg(Arg::new("SOURCE")
         .short('s')
@@ -35,7 +39,7 @@ async fn main() {
         .default_value(env::current_dir().unwrap().join("wwwroot").to_str().unwrap())
         .validator(|p|{
             if !Path::new(p).exists(){
-                return Err(format!("Unable to find '{}'. Please make sure the 'src' argument points to a valid directory", p));
+                return Err(format!("Unable to find '{}'. Please make sure the 'src' argument points to your source files directory (defaults to the folder named 'wwwroot' in the current directory)", p));
             }
             Ok(())
         }))
@@ -43,7 +47,7 @@ async fn main() {
         .short('d')
         .long("dev")
         .takes_value(false)
-        .about("Runs micro in development mode spawning a child process monitoring for pages and template changes and automatically publishing them. A local webserver will also be started and will serve the edited resources"))
+        .about("Runs micro in development mode spawning a child process monitoring for pages and template changes and automatically publishing them. A local webserver will also be started and will serve the edited resources and refresh your browser when changes are detected."))
     .arg(Arg::new("TEMPLATES")
         .short('t')
         .long("templates")
@@ -51,12 +55,12 @@ async fn main() {
         .default_value(env::current_dir().unwrap().join("templates").to_str().unwrap())
         .validator(|p|{
             if !Path::new(p).exists(){
-                return Err(format!("Unable to find '{}'. Please make sure the 'templates' argument points to a valid directory", p));
+                return Err(format!("Unable to find '{}'. Please make sure the 'templates' argument points to the directory containing your html templates files (defaults to the folder named 'templates' in the current directory)", p));
             }
             Ok(())
         }))
-    .subcommand(App::new("verify").about("Scans for out of date published files"))
-    .subcommand(App::new("publish").about("Scans for out of date published files and republish them if needed"))
+    .subcommand(App::new("verify").about("Scans your source files for outdated or unpublish pages - this command does not publish outdated elements"))
+    .subcommand(App::new("publish").about("Scans your source files for outdated or unpublish pages. This command will republish all the outdated or unpblished elements but also republish all the pages which template has been updated"))
     .get_matches();
 
     let root_path = match matches.value_of("SOURCE") {
@@ -93,25 +97,35 @@ fn publish(
 
     walk_dir(root_path, "md", true, &move |p: &Path| {
         let markdown = p.metadata().unwrap();
-        let html = p.with_extension("html").metadata().unwrap();
-
-        let mdchange = markdown.modified().unwrap();
-        let htchange = html.modified().unwrap();
-
+        let html_path = p.with_extension("html");
         let mut publish = false;
         let mut reason: String = String::from("");
-        if mdchange > htchange {
-            publish = true;
-            reason = format!("'{:#?}' was changed and requires re-publishing", p);
-        } else {
-            // Check if the template changed
-            let md = metadata::MarkdownMetaData::from_file(p);
-            if let Some(metadata) = md {
-                if let Some(tplchange) = templates_ts.get(&metadata.layout) {
-                    publish = *tplchange > htchange;
-                    reason = format!("'{:#?}' requires re-publishing due to template change [{}]", p, metadata.layout);
+
+        if html_path.exists() {
+            let html = html_path.metadata().unwrap();
+
+            let mdchange = markdown.modified().unwrap();
+            let htchange = html.modified().unwrap();
+            
+            if mdchange > htchange {
+                publish = true;
+                reason = format!("{:#?} was changed and requires re-publishing", p);
+            } else {
+                // Check if the template changed
+                let md = metadata::MarkdownMetaData::from_file(p);
+                if let Some(metadata) = md {
+                    if let Some(tplchange) = templates_ts.get(&metadata.layout) {
+                        publish = *tplchange > htchange;
+                        reason = format!(
+                            "{:#?} requires re-publishing due to template change [{}]",
+                            p, metadata.layout
+                        );
+                    }
                 }
             }
+        }else{
+            publish = true;
+            reason = format!("{:#?} has not been published yet", p);
         }
         if !dryrun {
             if publish {
@@ -124,7 +138,7 @@ fn publish(
                     );
                 };
             }
-        }else if publish {
+        } else if publish {
             info!("{}", reason);
         }
     });

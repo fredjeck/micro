@@ -95,7 +95,7 @@ pub fn markdown_to_html(source: PathBuf, destination: Option<PathBuf>, templates
         Ok(_) => {}
         Err(_) => {
             bail!(
-                "Unable to load template {:#?} for {:#?}",
+                "Unable to load template [{:#?}] for {:#?}",
                 metadata.layout, &source
             );
         }
