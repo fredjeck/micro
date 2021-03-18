@@ -1,10 +1,11 @@
 ---
-layout: index
+layout: article
 published-on: 2021-01-01T20:00:00Z
-title: Sample micro generated website  
+title: Blogging Like a Boss  
 description: This is a long long description
   and uses multi line description
+  even two lines
 ---
-# Welcome
+# This is a sample article
 
-[Sample article](./article/article.html)
+Lorem ipsum... 

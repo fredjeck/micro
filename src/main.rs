@@ -23,7 +23,7 @@ use tokio::{
 
 #[tokio::main]
 async fn main() {
-    if let Err(_) = env::var("RUST_LOG"){
+    if let Err(_) = env::var("RUST_LOG") {
         env::set_var("RUST_LOG", "INFO");
     }
 
@@ -59,8 +59,14 @@ async fn main() {
             }
             Ok(())
         }))
-    .subcommand(App::new("verify").about("Scans your source files for outdated or unpublish pages - this command does not publish outdated elements"))
-    .subcommand(App::new("publish").about("Scans your source files for outdated or unpublish pages. This command will republish all the outdated or unpblished elements but also republish all the pages which template has been updated"))
+    .subcommand(App::new("verify").about("Scans your source files for outdated or unpublished pages - this command does not publish outdated elements"))
+    .subcommand(
+        App::new("publish").about("Scans your source files for outdated or unpublished pages. This command will republish all the outdated or unpblished elements but also republish all the pages which template has been updated")
+        .arg(Arg::new("FORCE")
+            .short('f')
+            .long("force")
+            .takes_value(false)
+            .about("Re-publishes all the source markdown files even if no changes were detected")))
     .get_matches();
 
     let root_path = match matches.value_of("SOURCE") {
@@ -71,13 +77,14 @@ async fn main() {
         Some(s) => PathBuf::from(s),
         None => panic!("Templates path cannot be found"),
     };
-
+   
     if let Some(_) = matches.subcommand_matches("verify") {
-        publish(root_path.clone(), templates_path.clone(), true).unwrap();
+        publish(root_path.clone(), templates_path.clone(), true, false).unwrap();
     }
 
-    if let Some(_) = matches.subcommand_matches("publish") {
-        publish(root_path.clone(), templates_path.clone(), false).unwrap();
+    if let Some(sbc) = matches.subcommand_matches("publish") {
+        let force = 1 == sbc.occurrences_of("FORCE");
+        publish(root_path.clone(), templates_path.clone(), false, force).unwrap();
     }
 
     if 1 == matches.occurrences_of("DEV") {
@@ -85,10 +92,13 @@ async fn main() {
     }
 }
 
+/// Republishes the source files. If dryrun is set to true, this function will only print out to the users the file which will be changed with a full publish.
+/// If force is set to true (ignored in case of dryrun) this function will republish all the files.
 fn publish(
     root_path: PathBuf,
     templates_path: PathBuf,
     dryrun: bool,
+    force: bool,
 ) -> Result<(), Box<dyn Error>> {
     let templates_ts = match template::last_changed(&templates_path) {
         Ok(t) => t,
@@ -101,12 +111,12 @@ fn publish(
         let mut publish = false;
         let mut reason: String = String::from("");
 
-        if html_path.exists() {
+        if html_path.exists() && force==false {
             let html = html_path.metadata().unwrap();
 
             let mdchange = markdown.modified().unwrap();
             let htchange = html.modified().unwrap();
-            
+
             if mdchange > htchange {
                 publish = true;
                 reason = format!("{:#?} was changed and requires re-publishing", p);
@@ -123,12 +133,14 @@ fn publish(
                     }
                 }
             }
-        }else{
+        } else {
             publish = true;
             reason = format!("{:#?} has not been published yet", p);
         }
+ 
         if !dryrun {
             if publish {
+                info!("Publishing {:#?}", p);
                 if let Err(e) =
                     convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned())
                 {
@@ -146,6 +158,7 @@ fn publish(
     Ok(())
 }
 
+/// Starts the development server and monitors file changes
 async fn start_dev_server(root_path: PathBuf, templates_path: PathBuf) {
     let (sender, mut receiver): (Sender<String>, Receiver<String>) =
         tokio::sync::mpsc::channel(100);

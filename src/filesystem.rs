@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Scans the provided path for file with the specified extension and calls the handling function for each occurence
 pub fn walk_dir<F>(path: PathBuf, extension: &'static str, recursive: bool, handler: &F)
 where
     F: Fn(&Path)
