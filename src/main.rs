@@ -14,7 +14,7 @@ use clap::{App, Arg};
 use convert::{markdown_to_html, metadata, template};
 use devserver::DevServer;
 use filesystem::walk_dir;
-use log::info;
+use log::{error, info};
 use simple_error::bail;
 use tokio::{
     join,
@@ -69,11 +69,11 @@ async fn main() {
     };
 
     if let Some(_) = matches.subcommand_matches("verify") {
-        verify(root_path.clone(), templates_path.clone());
+        publish(root_path.clone(), templates_path.clone(), true).unwrap();
     }
 
     if let Some(_) = matches.subcommand_matches("publish") {
-        verify(root_path.clone(), templates_path.clone());
+        publish(root_path.clone(), templates_path.clone(), false).unwrap();
     }
 
     if 1 == matches.occurrences_of("DEV") {
@@ -81,7 +81,11 @@ async fn main() {
     }
 }
 
-async fn verify(root_path: PathBuf, templates_path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn publish(
+    root_path: PathBuf,
+    templates_path: PathBuf,
+    dryrun: bool,
+) -> Result<(), Box<dyn Error>> {
     let templates_ts = match template::last_changed(&templates_path) {
         Ok(t) => t,
         Err(e) => bail!(e),
@@ -95,20 +99,33 @@ async fn verify(root_path: PathBuf, templates_path: PathBuf) -> Result<(), Box<d
         let htchange = html.modified().unwrap();
 
         let mut publish = false;
+        let mut reason: String = String::from("");
         if mdchange > htchange {
             publish = true;
+            reason = format!("'{:#?}' was changed and requires re-publishing", p);
         } else {
             // Check if the template changed
             let md = metadata::MarkdownMetaData::from_file(p);
             if let Some(metadata) = md {
                 if let Some(tplchange) = templates_ts.get(&metadata.layout) {
-                    publish = *tplchange > mdchange;
+                    publish = *tplchange > htchange;
+                    reason = format!("'{:#?}' requires re-publishing due to template change [{}]", p, metadata.layout);
                 }
             }
         }
-
-        if publish {
-            convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned());
+        if !dryrun {
+            if publish {
+                if let Err(e) =
+                    convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned())
+                {
+                    error!(
+                        "Something went wrong while publishing {:#?} this file will be skipped:{}",
+                        p, e
+                    );
+                };
+            }
+        }else if publish {
+            info!("{}", reason);
         }
     });
 

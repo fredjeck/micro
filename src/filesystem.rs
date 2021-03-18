@@ -42,8 +42,10 @@ where
             }
         };
 
-        if metadata.is_file() && item_path.extension() == Some(OsStr::new(extension)) {
-            handler(&item_path);
+        if metadata.is_file()  {
+            if item_path.extension() == Some(OsStr::new(extension)){
+                handler(&item_path);
+            }
         } else if recursive {
             walk_dir(item_path, extension, recursive, handler);
         }

@@ -47,6 +47,7 @@ pub fn merge_template(template: &str, metadata: &MarkdownMetaData, html_content:
     document
 }
 
+/// Given a Layout find all the usages within the provided path
 pub fn find_usage(root_path: &Path, layout: &Layout, matches: &mut Vec<PathBuf>){
 
     let directory = match std::fs::read_dir(&root_path) { 
@@ -89,6 +90,7 @@ pub fn find_usage(root_path: &Path, layout: &Layout, matches: &mut Vec<PathBuf>)
     }
 }
 
+/// Parses the templates from the provided path and returns their last change timestamp
 pub fn last_changed(templates_path: &Path)->Result<HashMap<Layout, SystemTime>, Box<dyn error::Error>> {
     let templates = match fs::read_dir(&templates_path) {
         Ok(t) => {
@@ -111,9 +113,6 @@ pub fn last_changed(templates_path: &Path)->Result<HashMap<Layout, SystemTime>, 
     });
 
     let templates_registry: HashMap<Layout, SystemTime> = tuples.collect();
-    for (k,v) in &templates_registry{
-        println!("{}:{:#?}", k, v);
-    }
 
     Ok(templates_registry)
 }
