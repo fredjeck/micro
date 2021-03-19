@@ -33,7 +33,7 @@ pub async fn _create_markdown_pipeline(
                 None => continue,
             };
 
-            match markdown_to_html(source,None, templates_location.clone()){
+            match markdown_to_html(source,None, templates_location.clone(), None::<fn(&mut str)>){
                 Ok(_) => {}
                 Err(e) => {
                     error!("{}", e);
@@ -46,7 +46,10 @@ pub async fn _create_markdown_pipeline(
 
 /// Converts the source markdown file (which needs to have a .md file extension) to HTML using a layout template specified via Metadata 
 /// If no destination is specified, the generated html file will be placed in the same path as the source file with the ".html" extension
-pub fn markdown_to_html(source: PathBuf, destination: Option<PathBuf>, templates_location: PathBuf) -> Result<PathBuf, Box<dyn error::Error + Send + Sync>> {
+pub fn markdown_to_html<F>(source: PathBuf, destination: Option<PathBuf>, templates_location: PathBuf, transform:Option<F>) 
+-> Result<PathBuf, Box<dyn error::Error + Send + Sync>> 
+where F: FnOnce(&mut str)->()
+{
     debug!("Publishing {:#?}", &source);
 
     if source.extension() != Some(OsStr::new("md")) {

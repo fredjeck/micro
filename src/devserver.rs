@@ -1,6 +1,14 @@
-use futures::{SinkExt, StreamExt};
+
+use futures::{future::ready, Future, FutureExt, SinkExt, StreamExt};
 use log::{debug, error, info};
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    ffi::{OsStr, OsString},
+    future,
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
+};
 use tokio::{
     sync::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -9,7 +17,24 @@ use tokio::{
     time::sleep,
 };
 use uuid::Uuid;
-use warp::{Filter, Rejection, Reply, ws::{Message, WebSocket, Ws}};
+use warp::{Filter, Rejection, Reply, ext, fs::File, http::HeaderValue, hyper::{Response, body::Bytes, header::CONTENT_TYPE}, ws::{Message, WebSocket, Ws}};
+
+const UPLINKJS: &str = r#"
+var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
+
+// Connection opened
+sk.addEventListener('open', function (event) {
+    sk.send('Hello Server!');
+});
+
+// Listen for messages
+sk.addEventListener('message', function (event) {
+    console.log('Message from server ', event.data);
+    if (event.data !== 'Pong !') {
+        document.location = document.location.origin + '/' + event.data;
+    }
+});
+"#;
 
 type Result<T> = std::result::Result<T, Rejection>;
 /// Helper type used to store WebSocket connected client
@@ -59,9 +84,17 @@ impl DevServer {
             .and(warp::any().map(move || connexions.clone()))
             .and_then(register_ws_handler);
 
-        let root = warp::get().and(warp::fs::dir(www_root));
+        let uplinkjs = warp::get().and(warp::path("uplink.js")).map(|| {
+            Response::builder()
+                .header("Content-Type", "text/javascript")
+                .body(UPLINKJS)
+        });
+
+        let root = warp::get().and(warp::fs::dir(www_root).and_then(inject_uplink));
+
         let filter = root.or(uplink);
-        let server = warp::serve(filter);
+        let withuplink = uplinkjs.or(filter);
+        let server = warp::serve(withuplink);
 
         let path = match root_url {
             Some(u) => u,
@@ -84,6 +117,48 @@ impl DevServer {
     pub fn clients(&self) -> Clients {
         self.clients.clone()
     }
+}
+
+/// Registers the WebSocket connection handler
+async fn inject_uplink(file: File) -> Result<impl Reply> {
+    let mut response = file.into_response();
+    let headers = response.headers();
+    
+    if let Some(content_type) = headers.get(CONTENT_TYPE){
+        match content_type.to_str(){
+            Ok(str) => {
+                if str != "text/html"{
+                    return Ok(response);
+                }
+            }
+            Err(_) => {}
+        }
+    }
+
+    let body = response.body_mut();
+    let mut buffer:Vec<u8> = Vec::new();
+    body.for_each(|chunk|{
+        if let Ok(bytes) = chunk {
+            &buffer.extend_from_slice(&bytes[..]);
+        }
+        future::ready(())
+    })
+    .await;
+
+    let content = match String::from_utf8(buffer){
+        Ok(s) => s,
+        Err(_) => {
+            return Ok(response);
+        }
+    };
+
+    let replaced = content.replace("</body>", r#"
+        </body>
+        <script type="text/javascript" src="http://localhost:4200/uplink.js"></script>
+    "#);
+    let mut resp = Response::new(warp::hyper::Body::from(replaced));
+    resp.headers_mut().append(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+    Ok(resp)
 }
 
 /// Registers the WebSocket connection handler
