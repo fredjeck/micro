@@ -12,7 +12,7 @@ use std::{
 
 use clap::{App, Arg};
 use convert::{markdown_to_html, metadata, template};
-use devserver::DevServer;
+use devserver::{ClientMessage, DevServer};
 use filesystem::walk_dir;
 use log::{error, info};
 use simple_error::bail;
@@ -77,7 +77,7 @@ async fn main() {
         Some(s) => PathBuf::from(s),
         None => panic!("Templates path cannot be found"),
     };
-   
+
     if let Some(_) = matches.subcommand_matches("verify") {
         publish(root_path.clone(), templates_path.clone(), true, false).unwrap();
     }
@@ -111,7 +111,7 @@ fn publish(
         let mut publish = false;
         let mut reason: String = String::from("");
 
-        if html_path.exists() && force==false {
+        if html_path.exists() && force == false {
             let html = html_path.metadata().unwrap();
 
             let mdchange = markdown.modified().unwrap();
@@ -137,12 +137,12 @@ fn publish(
             publish = true;
             reason = format!("{:#?} has not been published yet", p);
         }
- 
+
         if !dryrun {
             if publish {
                 info!("Publishing {:#?}", p);
                 if let Err(e) =
-                    convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned(), None::<fn(&mut str)>)
+                    convert::markdown_to_html(p.to_owned(), None, templates_path.to_owned())
                 {
                     error!(
                         "Something went wrong while publishing {:#?} this file will be skipped:{}",
@@ -191,13 +191,13 @@ async fn start_dev_server(root_path: PathBuf, templates_path: PathBuf) {
                         convert::template::find_usage(&root_path, &layout, &mut matches);
                         for file in matches {
                             if let Ok(html) =
-                                markdown_to_html(file, None, templates_path.to_path_buf(), None::<fn(&mut str)>)
+                                markdown_to_html(file, None, templates_path.to_path_buf())
                             {
                                 if let Ok(p) = html.strip_prefix(&root_path) {
                                     let str = p.to_str().unwrap();
                                     devserver::send_message(
                                         &clients,
-                                        str.replace(MAIN_SEPARATOR, "/"),
+                                        ClientMessage::Navigate(str.replace(MAIN_SEPARATOR, "/")),
                                     )
                                     .await;
                                 }
@@ -211,12 +211,14 @@ async fn start_dev_server(root_path: PathBuf, templates_path: PathBuf) {
                         file_path.to_path_buf(),
                         None,
                         templates_path.to_path_buf(),
-                        None::<fn(&mut str)>
                     ) {
                         if let Ok(p) = html.strip_prefix(&root_path) {
                             let str = p.to_str().unwrap();
-                            devserver::send_message(&clients, str.replace(MAIN_SEPARATOR, "/"))
-                                .await;
+                            devserver::send_message(
+                                &clients,
+                                ClientMessage::Navigate(str.replace(MAIN_SEPARATOR, "/")),
+                            )
+                            .await;
                         }
                     }
                 }

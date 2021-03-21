@@ -1,14 +1,6 @@
-
-use futures::{future::ready, Future, FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use log::{debug, error, info};
-use std::{
-    collections::HashMap,
-    ffi::{OsStr, OsString},
-    future,
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, fmt::Display, future, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     sync::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -17,28 +9,79 @@ use tokio::{
     time::sleep,
 };
 use uuid::Uuid;
-use warp::{Filter, Rejection, Reply, ext, fs::File, http::HeaderValue, hyper::{Response, body::Bytes, header::CONTENT_TYPE}, ws::{Message, WebSocket, Ws}};
+use warp::{
+    fs::File,
+    http::HeaderValue,
+    hyper::{header::CONTENT_TYPE, Response},
+    ws::{Message, WebSocket, Ws},
+    Filter, Rejection, Reply,
+};
 
 const UPLINKJS: &str = r#"
-var sk = new WebSocket('ws://127.0.0.1:4200/uplink');
+var sk = new WebSocket('ws://localhost:4200/uplink');
 
 // Connection opened
 sk.addEventListener('open', function (event) {
-    sk.send('Hello Server!');
+    console.log('Connecting to development server');
+    sk.send('Hello');
 });
 
 // Listen for messages
 sk.addEventListener('message', function (event) {
-    console.log('Message from server ', event.data);
-    if (event.data !== 'Pong !') {
-        document.location = document.location.origin + '/' + event.data;
-    }
+    console.log(event.data);
+    var msg = JSON.parse(event.data);
+    switch(msg.action){
+        case 'navigate':
+            document.location = document.location.origin + '/' + msg.payload;
+            break;
+        case 'reload':
+            document.location.reload();
+            break;
+        case 'hello':
+            console.log('Connected and listening for changes');
+            break;
+    }   
 });
 "#;
 
 type Result<T> = std::result::Result<T, Rejection>;
 /// Helper type used to store WebSocket connected client
 pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
+
+pub enum ClientMessage{
+    Handshake,
+    Reload,
+    Navigate(String)
+}
+
+impl ClientMessage{
+    pub fn to_json(&self) -> String{
+        return match self {
+            ClientMessage::Handshake =>  String::from(r#"{"action":"hello"}"#),
+
+            ClientMessage::Reload => 
+                 String::from(r#"{"action":"reload"}"#),
+            
+            ClientMessage::Navigate(path) =>
+                 format!("{{\"action\":\"navigate\", \"payload\":\"{}\"}}", path)
+            
+        }
+    }
+}
+
+impl Display for ClientMessage{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ClientMessage::Handshake =>  String::from("Handshake"),
+                ClientMessage::Reload => String::from("Reload"),
+                ClientMessage::Navigate(path) => format!("Navigate:{}", path)
+            }
+        )
+    }
+}
 
 /// A client connected via WebSocket
 #[derive(Debug)]
@@ -79,11 +122,13 @@ impl DevServer {
         info!("Starting development server");
         let connexions = self.clients.clone();
 
+        // Uplink WebSocket
         let uplink = warp::path("uplink")
             .and(warp::ws())
             .and(warp::any().map(move || connexions.clone()))
             .and_then(register_ws_handler);
 
+        // Uplink Javascript
         let uplinkjs = warp::get().and(warp::path("uplink.js")).map(|| {
             Response::builder()
                 .header("Content-Type", "text/javascript")
@@ -119,25 +164,27 @@ impl DevServer {
     }
 }
 
-/// Registers the WebSocket connection handler
+/// For each page served by the development server we inject a reference to the /uplink.js file
 async fn inject_uplink(file: File) -> Result<impl Reply> {
     let mut response = file.into_response();
     let headers = response.headers();
-    
-    if let Some(content_type) = headers.get(CONTENT_TYPE){
-        match content_type.to_str(){
+
+    if let Some(content_type) = headers.get(CONTENT_TYPE) {
+        match content_type.to_str() {
             Ok(str) => {
-                if str != "text/html"{
+                if str != "text/html" {
                     return Ok(response);
                 }
             }
-            Err(_) => {}
+            Err(_) => {
+                return Ok(response);
+            }
         }
     }
 
     let body = response.body_mut();
-    let mut buffer:Vec<u8> = Vec::new();
-    body.for_each(|chunk|{
+    let mut buffer: Vec<u8> = Vec::new();
+    body.for_each(|chunk| {
         if let Ok(bytes) = chunk {
             &buffer.extend_from_slice(&bytes[..]);
         }
@@ -145,19 +192,23 @@ async fn inject_uplink(file: File) -> Result<impl Reply> {
     })
     .await;
 
-    let content = match String::from_utf8(buffer){
+    let content = match String::from_utf8(buffer) {
         Ok(s) => s,
         Err(_) => {
             return Ok(response);
         }
     };
-
-    let replaced = content.replace("</body>", r#"
+    // TODO make port a parameter
+    let replaced = content.replace(
+        "</body>",
+        r#"
         </body>
         <script type="text/javascript" src="http://localhost:4200/uplink.js"></script>
-    "#);
+    "#,
+    );
     let mut resp = Response::new(warp::hyper::Body::from(replaced));
-    resp.headers_mut().append(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+    resp.headers_mut()
+        .append(CONTENT_TYPE, HeaderValue::from_static("text/html"));
     Ok(resp)
 }
 
@@ -212,18 +263,18 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     if let Some(v) = locked.get_mut(id) {
         debug!("Message received from '{}': {:#?}", v.id, msg);
         if let Some(sender) = &v.sender {
-            let _ = sender.send(Message::text("Pong !"));
+            let _ = sender.send(Message::text(ClientMessage::Handshake.to_json()));
         }
     }
 }
 
 /// Sends a message to the provided list of WebSocket connect clients
-pub async fn send_message(clients: &Clients, message: String) {
+pub async fn send_message(clients: &Clients, message: ClientMessage) {
     clients.read().await.iter().for_each(|(_, client)| {
         debug!("Notifiying client '{}' for '{}'", client.id, message);
         if let Some(sender) = &client.sender {
             //let _ = sender.send(Message::text(path.clone()));
-            let _ = sender.send(Message::text(message.clone()));
+            let _ = sender.send(Message::text(message.to_json()));
         }
     });
 }
