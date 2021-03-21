@@ -190,21 +190,17 @@ async fn start_dev_server(root_path: PathBuf, templates_path: PathBuf) {
                         );
                         convert::template::find_usage(&root_path, &layout, &mut matches);
                         for file in matches {
-                            if let Ok(html) =
-                                markdown_to_html(file, None, templates_path.to_path_buf())
-                            {
-                                if let Ok(p) = html.strip_prefix(&root_path) {
-                                    let str = p.to_str().unwrap();
-                                    devserver::send_message(
-                                        &clients,
-                                        ClientMessage::Navigate(str.replace(MAIN_SEPARATOR, "/")),
-                                    )
-                                    .await;
-                                }
+                            let filepath = file.clone();
+                            if let Err(e) = markdown_to_html(file, None, templates_path.to_path_buf()){
+                                error!("An error occured while refreshing {:#?} after its layout {} changed: {}", filepath, &layout, e);    
                             }
                         }
+                        devserver::send_message(
+                            &clients,
+                            ClientMessage::Reload,
+                        )
+                        .await;
                     }
-                    // Will have to deal with template changes and maybe issue a reload command
                     continue;
                 } else if extension == "md" {
                     if let Ok(html) = markdown_to_html(
